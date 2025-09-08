@@ -42,13 +42,13 @@ This creates:
 
 ## Command Line Options
 
-| Flag        | Description                                | Default                | Example               |
-| ----------- | ------------------------------------------ | ---------------------- | --------------------- |
+| Flag        | Description                                | Default                | Example                |
+| ----------- | ------------------------------------------ | ---------------------- | ---------------------- |
 | `--text`    | Text to encode in QR code (required)       | -                      | `--text "Hello World"` |
-| `-format`   | Output format: `text`, `png`               | `text`                 | `-format png`         |
-| `-output`   | Output file path                           | `qrcode.png` or stdout | `-output my-qr.png`   |
-| `-size`     | Size in pixels (for image formats)         | `256`                  | `-size 512`           |
-| `-recovery` | Error correction level: `L`, `M`, `Q`, `H` | `M`                    | `-recovery H`         |
+| `-format`   | Output format: `text`, `png`               | `text`                 | `-format png`          |
+| `-output`   | Output file path                           | `qrcode.png` or stdout | `-output my-qr.png`    |
+| `-size`     | Size in pixels (for image formats)         | `256`                  | `-size 512`            |
+| `-recovery` | Error correction level: `L`, `M`, `Q`, `H` | `M`                    | `-recovery H`          |
 
 ## Examples
 
