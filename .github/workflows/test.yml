@@ -9,7 +9,10 @@ on:
 jobs:
   test:
     name: Test QR Code Generator
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -118,7 +121,7 @@ jobs:
 
       - name: Test cross-platform builds
         run: |
-          echo "🔨 Testing cross-platform builds..."
+          echo "🔨 Testing cross-platform builds on ${{ matrix.os }}..."
 
           # Build for different platforms
           GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o qr-gen-linux main.go
@@ -128,91 +131,240 @@ jobs:
 
           echo "✅ Cross-platform builds completed"
 
-          # Test the built binaries
-          echo "Testing built binaries..."
-          ./qr-gen-linux --text "Linux test" --format text > /dev/null
-          ./qr-gen-darwin --text "macOS test" --format text > /dev/null
-          ./qr-gen-darwin-arm64 --text "macOS ARM test" --format text > /dev/null
+          # Test the native binary for current platform
+          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+            echo "Testing native Linux binary..."
+            ./qr-gen-linux --text "Linux test" --format text > /dev/null
+            echo "✅ Linux binary test passed"
+          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            echo "Testing native macOS binary..."
+            ./qr-gen-darwin --text "macOS test" --format text > /dev/null
+            echo "✅ macOS binary test passed"
+          elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            echo "Testing native Windows binary..."
+            ./qr-gen-windows.exe --text "Windows test" --format text > /dev/null
+            echo "✅ Windows binary test passed"
+          fi
 
-          echo "✅ Built binary tests passed"
+          # Verify all binaries exist and have correct sizes
+          echo "Verifying binary files..."
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            dir qr-gen-*
+          else
+            ls -la qr-gen-*
+          fi
+
+          # Check that all binaries were created and have reasonable sizes (> 1MB)
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            # Windows PowerShell commands
+            powershell -Command "
+              $binaries = @('qr-gen-linux', 'qr-gen-windows.exe', 'qr-gen-darwin', 'qr-gen-darwin-arm64')
+              foreach ($binary in $binaries) {
+                if (Test-Path $binary) {
+                  $size = (Get-Item $binary).Length
+                  if ($size -gt 1000000) {
+                    Write-Host '✅ $binary created successfully ($size bytes)'
+                  } else {
+                    Write-Host '❌ $binary failed to create or is too small'
+                    exit 1
+                  }
+                } else {
+                  Write-Host '❌ $binary not found'
+                  exit 1
+                }
+              }
+            "
+          else
+            # Unix commands
+            for binary in qr-gen-linux qr-gen-windows.exe qr-gen-darwin qr-gen-darwin-arm64; do
+              if [ -f "$binary" ] && [ $(stat -c%s "$binary") -gt 1000000 ]; then
+                echo "✅ $binary created successfully ($(stat -c%s "$binary") bytes)"
+              else
+                echo "❌ $binary failed to create or is too small"
+                exit 1
+              fi
+            done
+          fi
+
+          echo "✅ Cross-platform build tests passed on ${{ matrix.os }}"
 
       - name: Run comprehensive test script
         run: |
           echo "🧪 Running comprehensive test script..."
-          chmod +x test.sh
-          ./test.sh
-          echo "✅ Comprehensive test script passed"
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            # On Windows, run the test commands directly using PowerShell
+            powershell -Command "
+              Write-Host 'Testing ASCII output...'
+              go run main.go --text 'Hello World!' | Out-Null
+              Write-Host '✅ ASCII output test passed'
+              
+              Write-Host 'Testing PNG output...'
+              go run main.go --text 'Test PNG' --format png --output test.png
+              if (Test-Path test.png) {
+                Write-Host '✅ PNG output test passed'
+                Remove-Item test.png
+              } else {
+                Write-Host '❌ PNG output test failed'
+                exit 1
+              }
+              
+              Write-Host 'Testing error handling...'
+              `$output = go run main.go 2>&1
+              if (`$output -match 'Error: --text flag is required') {
+                Write-Host '✅ Error handling test passed'
+              } else {
+                Write-Host '❌ Error handling test failed'
+                exit 1
+              }
+              
+              Write-Host '✅ Windows comprehensive test script passed'
+            "
+          else
+            # On Unix systems, run the test script
+            chmod +x test.sh
+            ./test.sh
+            echo "✅ Comprehensive test script passed"
+          fi
 
       - name: Test file permissions
         run: |
           echo "🔐 Testing file permissions..."
           go build -ldflags="-s -w" -o qr-gen main.go
-          chmod +x qr-gen
 
-          # Test that the binary is executable
-          if [ -x qr-gen ]; then
-            echo "✅ Binary is executable"
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            # On Windows, test execution directly
+            powershell -Command "
+              Write-Host 'Testing binary execution...'
+              .\qr-gen --text 'Permission test' | Out-Null
+              Write-Host '✅ Permission test passed'
+            "
           else
-            echo "❌ Binary is not executable"
-            exit 1
-          fi
+            # On Unix systems, test permissions
+            chmod +x qr-gen
 
-          # Test execution
-          ./qr-gen --text "Permission test" > /dev/null
-          echo "✅ Permission test passed"
+            # Test that the binary is executable
+            if [ -x qr-gen ]; then
+              echo "✅ Binary is executable"
+            else
+              echo "❌ Binary is not executable"
+              exit 1
+            fi
+
+            # Test execution
+            ./qr-gen --text "Permission test" > /dev/null
+            echo "✅ Permission test passed"
+          fi
 
       - name: Test output formats
         run: |
           echo "📄 Testing output formats..."
 
-          # Test text output to file
-          go run main.go --text "File output test" --output test-output.txt
-          if [ -f test-output.txt ]; then
-            echo "✅ Text file output test passed"
-            rm test-output.txt
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            # Windows PowerShell commands
+            powershell -Command "
+              Write-Host 'Testing text output to file...'
+              go run main.go --text 'File output test' --output test-output.txt
+              if (Test-Path test-output.txt) {
+                Write-Host '✅ Text file output test passed'
+                Remove-Item test-output.txt
+              } else {
+                Write-Host '❌ Text file output test failed'
+                exit 1
+              }
+              
+              Write-Host 'Testing PNG output with custom name...'
+              go run main.go --text 'Custom PNG test' --format png --output custom-test.png
+              if (Test-Path custom-test.png) {
+                Write-Host '✅ Custom PNG output test passed'
+                Remove-Item custom-test.png
+              } else {
+                Write-Host '❌ Custom PNG output test failed'
+                exit 1
+              }
+            "
           else
-            echo "❌ Text file output test failed"
-            exit 1
-          fi
+            # Unix commands
+            # Test text output to file
+            go run main.go --text "File output test" --output test-output.txt
+            if [ -f test-output.txt ]; then
+              echo "✅ Text file output test passed"
+              rm test-output.txt
+            else
+              echo "❌ Text file output test failed"
+              exit 1
+            fi
 
-          # Test PNG output with custom name
-          go run main.go --text "Custom PNG test" --format png --output custom-test.png
-          if [ -f custom-test.png ]; then
-            echo "✅ Custom PNG output test passed"
-            rm custom-test.png
-          else
-            echo "❌ Custom PNG output test failed"
-            exit 1
+            # Test PNG output with custom name
+            go run main.go --text "Custom PNG test" --format png --output custom-test.png
+            if [ -f custom-test.png ]; then
+              echo "✅ Custom PNG output test passed"
+              rm custom-test.png
+            else
+              echo "❌ Custom PNG output test failed"
+              exit 1
+            fi
           fi
 
       - name: Performance test
         run: |
           echo "⚡ Running performance test..."
 
-          # Test with a longer string
-          long_text="This is a very long text string that will test the QR code generator's ability to handle larger inputs and create more complex QR codes. It includes various characters and symbols: @#$%^&*()_+-=[]{}|;':\",./<>? and numbers 1234567890"
-
-          start_time=$(date +%s%N)
-          go run main.go --text "$long_text" --format png --output performance-test.png
-          end_time=$(date +%s%N)
-
-          duration=$(( (end_time - start_time) / 1000000 ))
-          echo "Performance test completed in ${duration}ms"
-
-          if [ -f performance-test.png ]; then
-            echo "✅ Performance test passed"
-            rm performance-test.png
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            # Windows PowerShell commands
+            powershell -Command "
+              `$longText = 'This is a very long text string that will test the QR code generator''s ability to handle larger inputs and create more complex QR codes. It includes various characters and symbols: @#$%^&*()_+-=[]{}|;'':\",./<>? and numbers 1234567890'
+              
+              `$startTime = Get-Date
+              go run main.go --text `$longText --format png --output performance-test.png
+              `$endTime = Get-Date
+              
+              `$duration = (`$endTime - `$startTime).TotalMilliseconds
+              Write-Host 'Performance test completed in ' `$duration 'ms'
+              
+              if (Test-Path performance-test.png) {
+                Write-Host '✅ Performance test passed'
+                Remove-Item performance-test.png
+              } else {
+                Write-Host '❌ Performance test failed'
+                exit 1
+              }
+            "
           else
-            echo "❌ Performance test failed"
-            exit 1
+            # Unix commands
+            # Test with a longer string
+            long_text="This is a very long text string that will test the QR code generator's ability to handle larger inputs and create more complex QR codes. It includes various characters and symbols: @#$%^&*()_+-=[]{}|;':\",./<>? and numbers 1234567890"
+
+            start_time=$(date +%s%N)
+            go run main.go --text "$long_text" --format png --output performance-test.png
+            end_time=$(date +%s%N)
+
+            duration=$(( (end_time - start_time) / 1000000 ))
+            echo "Performance test completed in ${duration}ms"
+
+            if [ -f performance-test.png ]; then
+              echo "✅ Performance test passed"
+              rm performance-test.png
+            else
+              echo "❌ Performance test failed"
+              exit 1
+            fi
           fi
 
       - name: Cleanup
         if: always()
         run: |
           echo "🧹 Cleaning up test files..."
-          rm -f test*.png test*.txt qr-gen-* qr-gen
-          echo "✅ Cleanup completed"
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            # Windows PowerShell cleanup
+            powershell -Command "
+              Remove-Item -Path test*.png, test*.txt, qr-gen-*, qr-gen -ErrorAction SilentlyContinue
+              Write-Host '✅ Cleanup completed'
+            "
+          else
+            # Unix cleanup
+            rm -f test*.png test*.txt qr-gen-* qr-gen
+            echo "✅ Cleanup completed"
+          fi
 
       - name: Test Summary
         run: |
