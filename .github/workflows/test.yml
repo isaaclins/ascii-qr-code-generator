@@ -26,6 +26,7 @@ jobs:
         run: go mod tidy
 
       - name: Run basic tests
+        shell: bash
         run: |
           echo "🧪 Running basic functionality tests..."
 
@@ -120,6 +121,7 @@ jobs:
           echo "✅ Backward compatibility test passed"
 
       - name: Test cross-platform builds
+        shell: bash
         run: |
           echo "🔨 Testing cross-platform builds on ${{ matrix.os }}..."
 
@@ -201,6 +203,7 @@ jobs:
           echo "✅ Cross-platform build tests passed on ${{ matrix.os }}"
 
       - name: Run comprehensive test script
+        shell: bash
         run: |
           echo "🧪 Running comprehensive test script..."
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
@@ -239,6 +242,7 @@ jobs:
           fi
 
       - name: Test file permissions
+        shell: bash
         run: |
           echo "🔐 Testing file permissions..."
           go build -ldflags="-s -w" -o qr-gen main.go
@@ -268,6 +272,7 @@ jobs:
           fi
 
       - name: Test output formats
+        shell: bash
         run: |
           echo "📄 Testing output formats..."
 
@@ -318,6 +323,7 @@ jobs:
           fi
 
       - name: Performance test
+        shell: bash
         run: |
           echo "⚡ Running performance test..."
 
@@ -364,6 +370,7 @@ jobs:
 
       - name: Cleanup
         if: always()
+        shell: bash
         run: |
           echo "🧹 Cleaning up test files..."
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
@@ -379,6 +386,7 @@ jobs:
           fi
 
       - name: Test Summary
+        shell: bash
         run: |
           echo "🎉 All tests completed successfully!"
           echo "✅ Basic functionality tests passed"
