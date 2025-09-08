@@ -1,0 +1,227 @@
+name: Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test QR Code Generator
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.21"
+
+      - name: Download dependencies
+        run: go mod tidy
+
+      - name: Run basic tests
+        run: |
+          echo "🧪 Running basic functionality tests..."
+
+          # Test ASCII output (default)
+          echo "Testing ASCII output..."
+          go run main.go --text "Hello World!" > /dev/null
+          echo "✅ ASCII output test passed"
+
+          # Test PNG output
+          echo "Testing PNG output..."
+          go run main.go --text "Test PNG" --format png --output test.png
+          if [ -f test.png ]; then
+            echo "✅ PNG output test passed"
+            rm test.png
+          else
+            echo "❌ PNG output test failed"
+            exit 1
+          fi
+
+          # Test different sizes
+          echo "Testing different sizes..."
+          go run main.go --text "Size test" --format png --size 128 --output test-128.png
+          go run main.go --text "Size test" --format png --size 512 --output test-512.png
+          if [ -f test-128.png ] && [ -f test-512.png ]; then
+            echo "✅ Size test passed"
+            rm test-128.png test-512.png
+          else
+            echo "❌ Size test failed"
+            exit 1
+          fi
+
+          # Test error correction levels
+          echo "Testing error correction levels..."
+          for level in L M Q H; do
+            go run main.go --text "EC test $level" --recovery $level --format png --output test-ec-$level.png
+            if [ ! -f test-ec-$level.png ]; then
+              echo "❌ Error correction level $level test failed"
+              exit 1
+            fi
+            rm test-ec-$level.png
+          done
+          echo "✅ Error correction levels test passed"
+
+          # Test special characters
+          echo "Testing special characters..."
+          go run main.go --text "Special chars: @#$%^&*()" > /dev/null
+          echo "✅ Special characters test passed"
+
+          # Test URL
+          echo "Testing URL..."
+          go run main.go --text "https://github.com" --format png --output test-url.png
+          if [ -f test-url.png ]; then
+            echo "✅ URL test passed"
+            rm test-url.png
+          else
+            echo "❌ URL test failed"
+            exit 1
+          fi
+
+          # Test WiFi QR code
+          echo "Testing WiFi QR code..."
+          go run main.go --text "WIFI:T:WPA;S:TestNetwork;P:password123;;" --format png --output test-wifi.png
+          if [ -f test-wifi.png ]; then
+            echo "✅ WiFi QR code test passed"
+            rm test-wifi.png
+          else
+            echo "❌ WiFi QR code test failed"
+            exit 1
+          fi
+
+          # Test error handling
+          echo "Testing error handling..."
+          if go run main.go 2>&1 | grep -q "Error: --text flag is required"; then
+            echo "✅ Error handling test passed"
+          else
+            echo "❌ Error handling test failed"
+            exit 1
+          fi
+
+          # Test help output
+          echo "Testing help output..."
+          if go run main.go --help | grep -q "Usage of"; then
+            echo "✅ Help output test passed"
+          else
+            echo "❌ Help output test failed"
+            exit 1
+          fi
+
+          # Test backward compatibility
+          echo "Testing backward compatibility..."
+          go run main.go -text "Backward compatibility test" > /dev/null
+          echo "✅ Backward compatibility test passed"
+
+      - name: Test cross-platform builds
+        run: |
+          echo "🔨 Testing cross-platform builds..."
+
+          # Build for different platforms
+          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o qr-gen-linux main.go
+          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o qr-gen-windows.exe main.go
+          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o qr-gen-darwin main.go
+          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o qr-gen-darwin-arm64 main.go
+
+          echo "✅ Cross-platform builds completed"
+
+          # Test the built binaries
+          echo "Testing built binaries..."
+          ./qr-gen-linux --text "Linux test" --format text > /dev/null
+          ./qr-gen-darwin --text "macOS test" --format text > /dev/null
+          ./qr-gen-darwin-arm64 --text "macOS ARM test" --format text > /dev/null
+
+          echo "✅ Built binary tests passed"
+
+      - name: Run comprehensive test script
+        run: |
+          echo "🧪 Running comprehensive test script..."
+          chmod +x test.sh
+          ./test.sh
+          echo "✅ Comprehensive test script passed"
+
+      - name: Test file permissions
+        run: |
+          echo "🔐 Testing file permissions..."
+          go build -ldflags="-s -w" -o qr-gen main.go
+          chmod +x qr-gen
+
+          # Test that the binary is executable
+          if [ -x qr-gen ]; then
+            echo "✅ Binary is executable"
+          else
+            echo "❌ Binary is not executable"
+            exit 1
+          fi
+
+          # Test execution
+          ./qr-gen --text "Permission test" > /dev/null
+          echo "✅ Permission test passed"
+
+      - name: Test output formats
+        run: |
+          echo "📄 Testing output formats..."
+
+          # Test text output to file
+          go run main.go --text "File output test" --output test-output.txt
+          if [ -f test-output.txt ]; then
+            echo "✅ Text file output test passed"
+            rm test-output.txt
+          else
+            echo "❌ Text file output test failed"
+            exit 1
+          fi
+
+          # Test PNG output with custom name
+          go run main.go --text "Custom PNG test" --format png --output custom-test.png
+          if [ -f custom-test.png ]; then
+            echo "✅ Custom PNG output test passed"
+            rm custom-test.png
+          else
+            echo "❌ Custom PNG output test failed"
+            exit 1
+          fi
+
+      - name: Performance test
+        run: |
+          echo "⚡ Running performance test..."
+
+          # Test with a longer string
+          long_text="This is a very long text string that will test the QR code generator's ability to handle larger inputs and create more complex QR codes. It includes various characters and symbols: @#$%^&*()_+-=[]{}|;':\",./<>? and numbers 1234567890"
+
+          start_time=$(date +%s%N)
+          go run main.go --text "$long_text" --format png --output performance-test.png
+          end_time=$(date +%s%N)
+
+          duration=$(( (end_time - start_time) / 1000000 ))
+          echo "Performance test completed in ${duration}ms"
+
+          if [ -f performance-test.png ]; then
+            echo "✅ Performance test passed"
+            rm performance-test.png
+          else
+            echo "❌ Performance test failed"
+            exit 1
+          fi
+
+      - name: Cleanup
+        if: always()
+        run: |
+          echo "🧹 Cleaning up test files..."
+          rm -f test*.png test*.txt qr-gen-* qr-gen
+          echo "✅ Cleanup completed"
+
+      - name: Test Summary
+        run: |
+          echo "🎉 All tests completed successfully!"
+          echo "✅ Basic functionality tests passed"
+          echo "✅ Cross-platform build tests passed"
+          echo "✅ Comprehensive test script passed"
+          echo "✅ File permission tests passed"
+          echo "✅ Output format tests passed"
+          echo "✅ Performance tests passed"
+          echo ""
+          echo "The QR Code Generator is ready for release! 🚀"

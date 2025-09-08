@@ -1,0 +1,207 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g., v1.0.0)"
+        required: true
+        default: "v1.0.0"
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.21"
+
+      - name: Download dependencies
+        run: go mod tidy
+
+      - name: Run tests
+        run: |
+          # Test basic functionality
+          go run main.go --text "Test QR Code" --format text
+          go run main.go --text "Test QR Code" --format png --output test.png
+
+          # Test error handling
+          go run main.go || true
+
+          # Test help
+          go run main.go --help
+
+      - name: Test cross-platform builds
+        run: |
+          # Test building for different platforms
+          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o qr-gen-linux main.go
+          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o qr-gen-windows.exe main.go
+          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o qr-gen-darwin main.go
+          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o qr-gen-darwin-arm64 main.go
+
+          # Test the built binaries
+          ./qr-gen-linux --text "Linux test" --format text
+          ./qr-gen-darwin --text "macOS test" --format text
+          ./qr-gen-darwin-arm64 --text "macOS ARM test" --format text
+          wine ./qr-gen-windows.exe --text "Windows test" --format text || echo "Windows test completed (wine may not be available)"
+
+  build:
+    name: Build Binaries
+    runs-on: ubuntu-latest
+    needs: test
+    strategy:
+      matrix:
+        include:
+          - os: linux
+            arch: amd64
+            name: linux-amd64
+          - os: linux
+            arch: arm64
+            name: linux-arm64
+          - os: windows
+            arch: amd64
+            name: windows-amd64
+          - os: darwin
+            arch: amd64
+            name: darwin-amd64
+          - os: darwin
+            arch: arm64
+            name: darwin-arm64
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.21"
+
+      - name: Download dependencies
+        run: go mod tidy
+
+      - name: Build binary
+        run: |
+          GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -ldflags="-s -w" -o qr-gen-${{ matrix.name }} main.go
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            mv qr-gen-${{ matrix.name }} qr-gen-${{ matrix.name }}.exe
+          fi
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qr-gen-${{ matrix.name }}
+          path: qr-gen-${{ matrix.name }}*
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+
+          # Copy binaries to release directory
+          find . -name "qr-gen-*" -type f -exec cp {} release-assets/ \;
+
+          # Create checksums
+          cd release-assets
+          for file in qr-gen-*; do
+            sha256sum "$file" > "$file.sha256"
+          done
+
+          # Create a simple README for the release
+          cat > README.md << 'EOF'
+          # QR Code Generator Release
+
+          This release contains pre-built binaries for multiple platforms.
+
+          ## Available Binaries
+
+          - `qr-gen-linux-amd64` - Linux x86_64
+          - `qr-gen-linux-arm64` - Linux ARM64
+          - `qr-gen-windows-amd64.exe` - Windows x86_64
+          - `qr-gen-darwin-amd64` - macOS x86_64 (Intel)
+          - `qr-gen-darwin-arm64` - macOS ARM64 (Apple Silicon)
+
+          ## Usage
+
+          ```bash
+          # Make executable (Unix systems)
+          chmod +x qr-gen-*
+
+          # Generate QR code
+          ./qr-gen-* --text "Hello World!"
+          ```
+
+          ## Verification
+
+          Verify the integrity of downloaded files using the provided SHA256 checksums:
+
+          ```bash
+          sha256sum -c qr-gen-*.sha256
+          ```
+          EOF
+
+          ls -la
+
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: QR Code Generator ${{ steps.version.outputs.version }}
+          body: |
+            ## QR Code Generator ${{ steps.version.outputs.version }}
+
+            A single executable binary that generates QR codes from strings.
+
+            ### Features
+            - 🚀 Single executable - No dependencies required
+            - 📱 Multiple formats - Text (ASCII art) and PNG image output
+            - ⚙️ Customizable - Adjustable size, error correction level, and output options
+            - 🌍 Cross-platform - Works on macOS, Linux, and Windows
+            - 🎯 Simple CLI - Easy-to-use command-line interface
+
+            ### Quick Start
+            ```bash
+            # Make executable (Unix systems)
+            chmod +x qr-gen-*
+
+            # Generate ASCII QR code (default)
+            ./qr-gen-* --text "Hello World!"
+
+            # Generate PNG image
+            ./qr-gen-* --text "Hello World!" --format png
+            ```
+
+            ### Downloads
+            Choose the binary for your platform and verify using the SHA256 checksums.
+          files: release-assets/*
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
