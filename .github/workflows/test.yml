@@ -350,7 +350,7 @@ jobs:
               $longText = "This is a very long text string that will test the QR code generator''s ability to handle larger inputs and create more complex QR codes. It includes various characters and symbols: @#$%^&*()_+-=[]{}|;'':`",./<>? and numbers 1234567890"
               
               $startTime = Get-Date
-              go run main.go --text $longText --format png --output performance-test.png
+              go run main.go --text "$longText" --format png --output performance-test.png
               $endTime = Get-Date
               
               $duration = ($endTime - $startTime).TotalMilliseconds
