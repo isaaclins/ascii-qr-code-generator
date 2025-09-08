@@ -162,23 +162,23 @@ jobs:
           # Check that all binaries were created and have reasonable sizes (> 1MB)
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             # Windows PowerShell commands
-            powershell -Command "
-              $binaries = @('qr-gen-linux', 'qr-gen-windows.exe', 'qr-gen-darwin', 'qr-gen-darwin-arm64')
+            powershell -Command '
+              $binaries = @("qr-gen-linux", "qr-gen-windows.exe", "qr-gen-darwin", "qr-gen-darwin-arm64")
               foreach ($binary in $binaries) {
                 if (Test-Path $binary) {
                   $size = (Get-Item $binary).Length
                   if ($size -gt 1000000) {
-                    Write-Host '✅ $binary created successfully ($size bytes)'
+                    Write-Host "✅ $binary created successfully ($size bytes)"
                   } else {
-                    Write-Host '❌ $binary failed to create or is too small'
+                    Write-Host "❌ $binary failed to create or is too small"
                     exit 1
                   }
                 } else {
-                  Write-Host '❌ $binary not found'
+                  Write-Host "❌ $binary not found"
                   exit 1
                 }
               }
-            "
+            '
           else
             # Unix commands (Linux and macOS)
             for binary in qr-gen-linux qr-gen-windows.exe qr-gen-darwin qr-gen-darwin-arm64; do
