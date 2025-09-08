@@ -103,6 +103,8 @@ jobs:
             echo "✅ Error handling test passed"
           else
             echo "❌ Error handling test failed"
+            echo "Debug: Actual error output:"
+            go run main.go 2>&1 || true
             exit 1
           fi
 
