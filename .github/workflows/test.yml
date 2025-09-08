@@ -175,12 +175,24 @@ jobs:
               }
             "
           else
-            # Unix commands
+            # Unix commands (Linux and macOS)
             for binary in qr-gen-linux qr-gen-windows.exe qr-gen-darwin qr-gen-darwin-arm64; do
-              if [ -f "$binary" ] && [ $(stat -c%s "$binary") -gt 1000000 ]; then
-                echo "✅ $binary created successfully ($(stat -c%s "$binary") bytes)"
+              if [ -f "$binary" ]; then
+                # Use different stat command based on OS
+                if [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+                  size=$(stat -f%z "$binary")
+                else
+                  size=$(stat -c%s "$binary")
+                fi
+                
+                if [ "$size" -gt 1000000 ]; then
+                  echo "✅ $binary created successfully ($size bytes)"
+                else
+                  echo "❌ $binary failed to create or is too small ($size bytes)"
+                  exit 1
+                fi
               else
-                echo "❌ $binary failed to create or is too small"
+                echo "❌ $binary not found"
                 exit 1
               fi
             done
