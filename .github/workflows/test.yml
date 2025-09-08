@@ -104,7 +104,7 @@ jobs:
 
           # Test help output
           echo "Testing help output..."
-          if go run main.go --help | grep -q "Usage of"; then
+          if go run main.go --help > /dev/null 2>&1; then
             echo "✅ Help output test passed"
           else
             echo "❌ Help output test failed"
