@@ -99,12 +99,13 @@ jobs:
 
           # Test error handling
           echo "Testing error handling..."
-          if go run main.go 2>&1 | grep -q "Error: --text flag is required"; then
+          error_output=$(go run main.go 2>&1 || true)
+          if echo "$error_output" | grep -q "Error: --text flag is required"; then
             echo "✅ Error handling test passed"
           else
             echo "❌ Error handling test failed"
             echo "Debug: Actual error output:"
-            go run main.go 2>&1 || true
+            echo "$error_output"
             exit 1
           fi
 
@@ -226,12 +227,26 @@ jobs:
               }
               
               Write-Host 'Testing error handling...'
-              `$output = go run main.go 2>&1
-              if (`$output -match 'Error: --text flag is required') {
-                Write-Host '✅ Error handling test passed'
-              } else {
-                Write-Host '❌ Error handling test failed'
-                exit 1
+              try {
+                `$output = go run main.go 2>&1
+                if (`$output -match 'Error: --text flag is required') {
+                  Write-Host '✅ Error handling test passed'
+                } else {
+                  Write-Host '❌ Error handling test failed'
+                  Write-Host 'Debug: Actual error output:'
+                  Write-Host `$output
+                  exit 1
+                }
+              } catch {
+                `$output = `$_.Exception.Message
+                if (`$output -match 'Error: --text flag is required') {
+                  Write-Host '✅ Error handling test passed'
+                } else {
+                  Write-Host '❌ Error handling test failed'
+                  Write-Host 'Debug: Actual error output:'
+                  Write-Host `$output
+                  exit 1
+                }
               }
               
               Write-Host '✅ Windows comprehensive test script passed'
