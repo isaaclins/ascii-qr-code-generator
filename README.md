@@ -1,5 +1,10 @@
 # QR Code Generator
 
+[![Test](https://github.com/isaaclins/qr-code-gen-bash/actions/workflows/test.yml/badge.svg)](https://github.com/isaaclins/qr-code-gen-bash/actions/workflows/test.yml)
+[![Release](https://github.com/isaaclins/qr-code-gen-bash/actions/workflows/release.yml/badge.svg)](https://github.com/isaaclins/qr-code-gen-bash/actions/workflows/release.yml)
+[![Go Version](https://img.shields.io/badge/Go-1.21+-blue.svg)](https://golang.org/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
 A single executable binary that generates QR codes from strings. Built with Go for cross-platform compatibility.
 
 ## Features
@@ -26,6 +31,23 @@ This creates:
 - `build/qr-gen-macos` - macOS binary
 - `build/qr-gen-linux` - Linux binary
 - `build/qr-gen-windows.exe` - Windows binary
+
+## 📥 Downloads
+
+Pre-built binaries are available in the [Releases](https://github.com/isaaclins/qr-code-gen-bash/releases) section:
+
+- **Linux**: `qr-gen-linux-amd64`, `qr-gen-linux-arm64`
+- **macOS**: `qr-gen-darwin-amd64` (Intel), `qr-gen-darwin-arm64` (Apple Silicon)
+- **Windows**: `qr-gen-windows-amd64.exe`
+
+### Quick Download
+
+```bash
+# Download latest release (replace with actual URL)
+curl -L -o qr-gen https://github.com/isaaclins/qr-code-gen-bash/releases/latest/download/qr-gen-linux-amd64
+chmod +x qr-gen
+./qr-gen --text "Hello World!"
+```
 
 ### Basic Usage
 
