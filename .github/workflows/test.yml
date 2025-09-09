@@ -370,8 +370,11 @@ jobs:
             '
           else
             # Unix commands
-            # Test with a longer string
-            long_text="This is a very long text string that will test the QR code generator's ability to handle larger inputs and create more complex QR codes. It includes various characters and symbols: @#$%^&*()_+-=[]{}|;':\",./<>? and numbers 1234567890"
+            # Test with a longer string (use heredoc to avoid shell parsing issues)
+            long_text=$(cat <<'EOF'
+This is a very long text string that will test the QR code generator's ability to handle larger inputs and create more complex QR codes. It includes various characters and symbols: @#$%^&*()_+-=[]{}|;':",./<>? and numbers 1234567890
+EOF
+)
 
             start_time=$(date +%s%N)
             go run main.go --text "$long_text" --format png --output performance-test.png
