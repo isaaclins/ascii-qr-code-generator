@@ -347,7 +347,7 @@ jobs:
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             # Windows PowerShell commands
             powershell -Command '
-              $longText = "This is a very long text string that will test the QR code generator''s ability to handle larger inputs and create more complex QR codes. It includes various characters and symbols: @#$%^&*()_+-=[]{}|;'':`",./<>? and numbers 1234567890"
+              $longText = @"This is a very long text string that will test the QR code generator''s ability to handle larger inputs and create more complex QR codes. It includes various characters and symbols: @#$%^&*()_+-=[]{}|;'':`",./<>? and numbers 1234567890"@
               
               $startTime = Get-Date
               go run main.go --text "$longText" --format png --output performance-test.png
@@ -359,6 +359,7 @@ jobs:
               if (Test-Path performance-test.png) {
                 Write-Host "✅ Performance test passed"
                 Remove-Item performance-test.png
+                exit 0 # Powershell does not return 0 automatically... smh
               } else {
                 Write-Host "❌ Performance test failed"
                 exit 1
