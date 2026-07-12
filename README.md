@@ -1,7 +1,5 @@
 # QR Code Generator
 
-[![Test](https://github.com/isaaclins/qr-code-gen-bash/actions/workflows/test.yml/badge.svg)](https://github.com/isaaclins/qr-code-gen-bash/actions/workflows/test.yml)
-[![Release](https://github.com/isaaclins/qr-code-gen-bash/actions/workflows/release.yml/badge.svg)](https://github.com/isaaclins/qr-code-gen-bash/actions/workflows/release.yml)
 [![Go Version](https://img.shields.io/badge/Go-1.21+-blue.svg)](https://golang.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
